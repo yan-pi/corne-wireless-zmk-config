@@ -19,6 +19,12 @@ final class BluetoothBatteryClient: NSObject, CBCentralManagerDelegate, CBPeriph
     private var batteryServices = [CBService]()
     private var serviceIndices = [ObjectIdentifier: Int]()
     private var batteryCharacteristics = [CBCharacteristic]()
+    private var characteristicDiscoveryCount = 0
+    private var descriptorDiscoveryCount = 0
+    private var cpfDescriptors = [CBDescriptor]()
+    private var cpfOwners = [ObjectIdentifier: CBCharacteristic]()
+    private var descriptorIndex = 0
+    private var rolesByCharacteristic = [ObjectIdentifier: BatteryRole]()
     private var characteristicIndex = 0
     private var samples = [BatterySample]()
 
@@ -217,6 +223,8 @@ final class BluetoothBatteryClient: NSObject, CBCentralManagerDelegate, CBPeriph
         serviceIndices = Dictionary(uniqueKeysWithValues: batteryServices.enumerated().map {
             (ObjectIdentifier($0.element), $0.offset)
         })
+        characteristicDiscoveryCount = 0
+        batteryCharacteristics.removeAll()
         batteryServices.forEach {
             peripheral.discoverCharacteristics([Self.batteryLevelUUID], for: $0)
         }
@@ -231,12 +239,45 @@ final class BluetoothBatteryClient: NSObject, CBCentralManagerDelegate, CBPeriph
             peripheralConnectionCompletion?(.failure(.noBatteryService))
             return
         }
+        characteristicDiscoveryCount += 1
         batteryCharacteristics.append(contentsOf: (service.characteristics ?? []).filter {
             $0.uuid == Self.batteryLevelUUID
         })
-        guard batteryCharacteristics.count == batteryServices.count else { return }
-        characteristicIndex = 0
-        readNextCharacteristic(from: peripheral)
+        guard characteristicDiscoveryCount == batteryServices.count else { return }
+        guard !batteryCharacteristics.isEmpty else {
+            peripheralConnectionCompletion?(.failure(.noBatteryService))
+            return
+        }
+        descriptorDiscoveryCount = 0
+        cpfDescriptors.removeAll()
+        cpfOwners.removeAll()
+        batteryCharacteristics.forEach {
+            peripheral.discoverDescriptors(for: $0)
+        }
+    }
+
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didDiscoverDescriptorsFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
+        descriptorDiscoveryCount += 1
+        if error == nil, let cpf = characteristic.descriptors?.first(where: { $0.uuid == CBUUID(string: "2904") }) {
+            cpfDescriptors.append(cpf)
+            cpfOwners[ObjectIdentifier(cpf)] = characteristic
+        }
+        guard descriptorDiscoveryCount == batteryCharacteristics.count else { return }
+        descriptorIndex = 0
+        readNextCPFDescriptor(from: peripheral)
+    }
+
+    private func readNextCPFDescriptor(from peripheral: CBPeripheral) {
+        guard descriptorIndex < cpfDescriptors.count else {
+            characteristicIndex = 0
+            readNextCharacteristic(from: peripheral)
+            return
+        }
+        peripheral.readValue(for: cpfDescriptors[descriptorIndex])
     }
 
     private func readNextCharacteristic(from peripheral: CBPeripheral) {
@@ -257,6 +298,23 @@ final class BluetoothBatteryClient: NSObject, CBCentralManagerDelegate, CBPeriph
 
     func peripheral(
         _ peripheral: CBPeripheral,
+        didUpdateValueFor descriptor: CBDescriptor,
+        error: Error?
+    ) {
+        if descriptor.uuid == CBUUID(string: "2904"),
+           let value = descriptor.value as? Data,
+           value.count >= 7,
+           let characteristic = cpfOwners[ObjectIdentifier(descriptor)] {
+            let description = UInt16(value[5]) | (UInt16(value[6]) << 8)
+            rolesByCharacteristic[ObjectIdentifier(characteristic)] =
+                BatteryRole.fromPresentationDescription(description)
+        }
+        descriptorIndex += 1
+        readNextCPFDescriptor(from: peripheral)
+    }
+
+    func peripheral(
+        _ peripheral: CBPeripheral,
         didUpdateValueFor characteristic: CBCharacteristic,
         error: Error?
     ) {
@@ -267,8 +325,9 @@ final class BluetoothBatteryClient: NSObject, CBCentralManagerDelegate, CBPeriph
         } else {
             instance = characteristicIndex
         }
+        let batteryRole = rolesByCharacteristic[ObjectIdentifier(characteristic)] ?? role(for: instance)
         guard error == nil, let value = characteristic.value else {
-            samples.append(BatterySample(instance: instance, role: role(for: instance), level: .unavailable))
+            samples.append(BatterySample(instance: instance, role: batteryRole, level: .unavailable))
             characteristicIndex += 1
             readNextCharacteristic(from: peripheral)
             return
@@ -280,7 +339,7 @@ final class BluetoothBatteryClient: NSObject, CBCentralManagerDelegate, CBPeriph
             central.cancelPeripheralConnection(peripheral)
             return
         }
-        samples.append(BatterySample(instance: instance, role: role(for: instance), level: level))
+        samples.append(BatterySample(instance: instance, role: batteryRole, level: level))
         characteristicIndex += 1
         readNextCharacteristic(from: peripheral)
     }

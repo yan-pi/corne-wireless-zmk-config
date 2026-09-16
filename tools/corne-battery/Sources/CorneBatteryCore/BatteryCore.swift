@@ -31,6 +31,11 @@ public enum BatteryRole: Equatable, Sendable {
     case auxiliary
     case fallback(Int)
 
+    public static func fromPresentationDescription(_ description: UInt16) -> BatteryRole {
+        // ZMK's central BAS proxy uses the Bluetooth SIG "auxiliary" value.
+        description == 0x0108 ? .auxiliary : .main
+    }
+
     public var name: String {
         switch self {
         case .main: return "main"
