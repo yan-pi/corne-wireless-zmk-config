@@ -1,0 +1,16 @@
+name: Corne battery CLI
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  swift:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: tools/corne-battery
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test
+      - name: Build release binary
+        run: swift build --configuration release
