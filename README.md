@@ -31,6 +31,9 @@ CONFIG_BT_BAS=y
 CONFIG_ZMK_BATTERY_REPORTING=y
 CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE=y
 CONFIG_ZMK_BATTERY_REPORT_INTERVAL=60
+CONFIG_ZMK_SLEEP=n
+CONFIG_ZMK_SPLIT_BLE=y
+CONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=1
 CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING=y
 CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_PROXY=y
 ```
@@ -40,6 +43,8 @@ Only the left central communicates with the computer as a keyboard. The right
 half cannot become a standalone keyboard just by plugging its USB cable into a
 computer; that cable is useful for charging/debugging/flashing, while normal
 split operation requires the right half to connect wirelessly to the left.
+Deep sleep is currently disabled because waking from `CONFIG_ZMK_SLEEP` was not
+reliably restoring this BLE split; normal idle power management remains active.
 
 When a computer connects to the left central over BLE, it should expose its own
 standard Battery Service and an auxiliary Battery Service for the right half.
