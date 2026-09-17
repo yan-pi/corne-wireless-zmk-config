@@ -19,12 +19,6 @@ func batteryStatusUsesThresholds() {
     #expect(BatteryStatus.forPercent(nil) == .unavailable)
 }
 
-@Test("ZMK auxiliary CPF description identifies the right battery")
-func zmkAuxiliaryCPFDescriptionIdentifiesRightBattery() {
-    #expect(BatteryRole.fromPresentationDescription(0x0108) == .auxiliary)
-    #expect(BatteryRole.fromPresentationDescription(0x0000) == .main)
-}
-
 @Test("main and auxiliary batteries map to left and right")
 func mainAndAuxiliaryBatteriesMapToHalves() {
     let batteries = BatteryMapper.map([

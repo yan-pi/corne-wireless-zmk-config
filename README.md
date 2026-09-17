@@ -53,11 +53,9 @@ old Corne pairing in macOS, and pair again so CoreBluetooth does not retain an
 old GATT cache.
 
 The host-side path has been exercised against a paired Corne: CoreBluetooth
-found two Battery Services and two Battery Level characteristics. The CLI
-uses ZMK's CPF `auxiliary` descriptor instead of relying on service order. The
-current flash returned `0%` for the main/left reading and `100%` for the
-auxiliary/right reading, so the split link works and the remaining issue is the
-left firmware sensor/percentage validation. Run the debug build below
+found two Battery Services and two Battery Level characteristics. The current
+flash returned `0%` for both readings, so the remaining issue is firmware
+sensor/percentage validation, not BLE enumeration. Run the debug build below
 and compare its millivolt value to a multimeter before changing the mapping.
 
 ### Optional battery debug build
