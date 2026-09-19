@@ -8,12 +8,15 @@ reliably. The production configuration now sets:
 
 ```text
 CONFIG_ZMK_SLEEP=n
+CONFIG_ZMK_IDLE_TIMEOUT=3600000
 ```
 
-Flash both matching left and right images from the same successful workflow run.
-Normal ZMK idle remains enabled and should preserve Bluetooth connectivity.
+The one-hour idle timeout is a temporary reliability workaround. Flash both
+matching left and right images from the same successful workflow run. This keeps
+the matrix active during normal use instead of entering the problematic 30-second
+idle state.
 
-If the latest firmware still fails to wake:
+If the latest firmware still fails to wake after the one-hour workaround:
 
 1. confirm both halves are powered and close together;
 2. remove the Corne from macOS Bluetooth settings;

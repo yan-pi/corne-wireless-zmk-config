@@ -24,16 +24,18 @@ CONFIG_ZMK_BATTERY_REPORTING=y
 CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE=y
 CONFIG_ZMK_BATTERY_REPORT_INTERVAL=60
 CONFIG_ZMK_SLEEP=n
+CONFIG_ZMK_IDLE_TIMEOUT=3600000
 CONFIG_ZMK_SPLIT_BLE=y
 CONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=1
 CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING=y
 CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_PROXY=y
 ```
 
-Deep sleep is intentionally disabled. ZMK idle should preserve Bluetooth
-connectivity, but deep sleep disconnects Bluetooth and can require a wakeup
-source plus several seconds of reconnection. The current priority is reliable
-wake/reconnect over maximum battery life.
+Deep sleep is intentionally disabled. The idle timeout is temporarily set to
+one hour while wake behavior is validated on hardware. ZMK idle should preserve
+Bluetooth connectivity, but the shorter default timeout was causing unreliable
+wake behavior in this setup. The current priority is reliable wake/reconnect
+over maximum battery life.
 
 ## GitHub Actions build
 
