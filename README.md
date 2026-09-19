@@ -94,8 +94,9 @@ percentage taken while a cell is under a transient load as a calibration point.
 
 ## macOS CLI
 
-The package is at `tools/corne-battery` and uses only Apple CoreBluetooth and
-UserNotifications APIs:
+The package is at `tools/corne-battery` and uses Apple CoreBluetooth plus
+`osascript` for notifications, so the monitor works as a command-line process
+and as a LaunchAgent:
 
 ```sh
 cd tools/corne-battery
@@ -177,7 +178,8 @@ To install it as a user LaunchAgent (not done automatically):
 CORNE_DEVICE_NAME=Corne bash tools/corne-battery/scripts/install-monitor.sh
 ```
 
-Allow notifications in **System Settings > Notifications**. To remove it:
+Allow notifications for the notification sender shown by macOS in **System
+Settings > Notifications**. To remove it:
 
 ```sh
 bash tools/corne-battery/scripts/uninstall-monitor.sh

@@ -2,10 +2,6 @@ import Foundation
 import Darwin
 import CorneBatteryCore
 
-#if os(macOS)
-import UserNotifications
-#endif
-
 struct Arguments {
     enum Command { case devices, status, monitor, help }
     let command: Command
@@ -89,11 +85,6 @@ enum CLIError: LocalizedError {
 }
 
 #if os(macOS)
-final class PermissionResult: @unchecked Sendable {
-    let semaphore = DispatchSemaphore(value: 0)
-    var granted = false
-}
-
 struct CorneBatteryCLI {
     static func main() {
         do {
@@ -148,17 +139,6 @@ struct CorneBatteryCLI {
     }
 
     private static func monitor(_ arguments: Arguments) throws {
-        let center = UNUserNotificationCenter.current()
-        let permission = PermissionResult()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            permission.granted = granted
-            permission.semaphore.signal()
-        }
-        _ = permission.semaphore.wait(timeout: .now() + 10)
-        guard permission.granted else {
-            throw CLIError.usage("Notification permission was denied. Allow corne-battery in System Settings > Notifications.")
-        }
-
         let defaults = UserDefaults.standard
         print("Monitoring Corne battery levels. Press Ctrl-C to stop.")
         while true {
@@ -190,16 +170,27 @@ struct CorneBatteryCLI {
     }
 
     private static func sendNotification(for battery: BatteryReading, deviceName: String) {
-        let content = UNMutableNotificationContent()
-        content.title = "Corne battery low"
-        content.body = "\(deviceName) \(battery.label) battery is at \(battery.percentage.map(String.init) ?? "unknown")%."
-        content.sound = .default
-        let request = UNNotificationRequest(
-            identifier: "corne-battery-\(battery.label)",
-            content: content,
-            trigger: nil
+        let title = appleScriptString("Corne battery low")
+        let body = appleScriptString(
+            "\(deviceName) \(battery.label) battery is at \(battery.percentage.map(String.init) ?? "unknown")%."
         )
-        UNUserNotificationCenter.current().add(request)
+        let script = "display notification \(body) with title \(title) sound name \"Glass\""
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        do {
+            try process.run()
+        } catch {
+            fputs("corne-battery: unable to send notification: \(error.localizedDescription)\n", stderr)
+        }
+    }
+
+    private static func appleScriptString(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: " ")
+        return "\"\(escaped)\""
     }
 }
 
